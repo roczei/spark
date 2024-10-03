@@ -2801,4 +2801,27 @@ package object config {
       .version("4.0.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
+
+  private[spark] val DRIVER_THREAD_DUMP_COLLECTOR_ENABLED = ConfigBuilder("spark.driver" +
+    ".threadDumpCollector.enabled")
+    .version("4.0.0")
+    .booleanConf
+    .createWithDefault(false)
+
+  private[spark] val EXECUTOR_THREAD_DUMP_COLLECTOR_ENABLED = ConfigBuilder("spark.executor" +
+    ".threadDumpCollector.enabled")
+    .version("4.0.0")
+    .booleanConf
+    .createWithDefault(false)
+
+  private[spark] val THREAD_DUMP_COLLECTOR_INTERVAL =
+    ConfigBuilder("spark.threadDumpCollectorInterval")
+      .version("4.0.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10s")
+
+  private[spark] val THREAD_DUMP_COLLECTOR_DIR = ConfigBuilder("spark.threadDumpCollector.dir")
+    .version("4.0.0")
+    .stringConf
+    .createWithDefault("/tmp/spark-thread-dumps")
 }
