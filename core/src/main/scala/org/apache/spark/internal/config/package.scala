@@ -2833,4 +2833,43 @@ package object config {
       .checkValues(Set("connect", "classic"))
       .createWithDefault(
         if (sys.env.get("SPARK_CONNECT_MODE").contains("1")) "connect" else "classic")
+
+  private[spark] val DRIVER_THREAD_DUMP_COLLECTOR_ENABLED = ConfigBuilder("spark.driver" +
+    ".threadDumpCollector.enabled")
+    .doc("Whether to enable automatic thread dump collection for driver")
+    .version("4.0.0")
+    .booleanConf
+    .createWithDefault(false)
+
+  private[spark] val EXECUTOR_THREAD_DUMP_COLLECTOR_ENABLED = ConfigBuilder("spark.executor" +
+    ".threadDumpCollector.enabled")
+    .doc("Whether to enable automatic thread dump collection for each executor")
+    .version("4.0.0")
+    .booleanConf
+    .createWithDefault(false)
+
+  private[spark] val THREAD_DUMP_COLLECTOR_INTERVAL =
+    ConfigBuilder("spark.threadDumpCollectorInterval")
+      .doc("The interval of time between two thread dump collection.")
+      .version("4.0.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ > 0, "Value should be positive")
+      .createWithDefaultString("10s")
+
+  private[spark] val THREAD_DUMP_COLLECTOR_DIR = ConfigBuilder("spark.threadDumpCollector.dir")
+    .doc("Set the default directory for saving the thread dump files.")
+    .version("4.0.0")
+    .stringConf
+    .createWithDefault("file:/tmp/spark-thread-dumps")
+
+  private[spark] val THREAD_DUMP_COLLECTOR_OUTPUT_TYPE =
+    ConfigBuilder("spark.threadDumpCollector.output.type")
+      .doc("Specifies the type of saving the thread dumps. Can be either LOG (the default) or " +
+        "FILE")
+      .version("4.0.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("LOG", "FILE"))
+      .createWithDefault("LOG")
+
 }
