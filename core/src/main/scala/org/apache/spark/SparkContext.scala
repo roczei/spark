@@ -617,7 +617,7 @@ class SparkContext(config: SparkConf) extends Logging {
     // Create and start the thread dump collector for the Spark driver
     if (_conf.get(DRIVER_THREAD_DUMP_COLLECTOR_ENABLED)) {
       _driverThreadDumpCollector = new ThreadDumpCollector(
-        () => Utils.writeThreadDumpToFile(env),
+        () => Utils.writeThreadDumpToLog(env),
         "driver-threadDumpCollector",
         conf.get(THREAD_DUMP_COLLECTOR_INTERVAL))
       _driverThreadDumpCollector.start()

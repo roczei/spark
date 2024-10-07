@@ -28,7 +28,6 @@ import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.security.SecureRandom
-import java.time.Instant
 import java.util.{Locale, Properties, Random, UUID}
 import java.util.concurrent._
 import java.util.concurrent.TimeUnit.NANOSECONDS
@@ -54,8 +53,7 @@ import org.apache.commons.codec.binary.Hex
 import org.apache.commons.io.IOUtils
 import org.apache.commons.lang3.{JavaVersion, SystemUtils}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, FileUtil, FSDataOutputStream, Path}
-import org.apache.hadoop.fs.permission.FsPermission
+import org.apache.hadoop.fs.{FileSystem, FileUtil, Path}
 import org.apache.hadoop.io.compress.{CompressionCodecFactory, SplittableCompressionCodec}
 import org.apache.hadoop.ipc.{CallerContext => HadoopCallerContext}
 import org.apache.hadoop.ipc.CallerContext.{Builder => HadoopCallerContextBuilder}
@@ -2114,29 +2112,11 @@ private[spark] object Utils
     }.map(threadInfoToThreadStackTrace)
   }
 
-  def writeThreadDumpToFile(env: SparkEnv): Unit = {
-    val collectedThreadDump = getThreadDump().map(_.toString).mkString
-    val hadoopConf = SparkHadoopUtil.get.newConfiguration(env.conf)
-    val rootDir = env.conf.get(THREAD_DUMP_COLLECTOR_DIR)
-    var outputStream: FSDataOutputStream = null
-    val fileSystem: FileSystem = new Path(rootDir).getFileSystem(hadoopConf)
-    val threadDumpFilePermissions = new FsPermission(Integer.parseInt("770", 8).toShort)
-    val timestamp = Instant.now().getEpochSecond().toString()
-    val threadDumpFileName = env.conf.getAppId + "-" + env.executorId + "-" + timestamp + ".txt"
-    val dfsLogFile: Path = fileSystem.makeQualified(new Path(rootDir, threadDumpFileName))
-    try {
-      outputStream = SparkHadoopUtil.createFile(fileSystem, dfsLogFile, true)
-      fileSystem.setPermission(dfsLogFile, threadDumpFilePermissions)
-      outputStream.write(collectedThreadDump.getBytes(StandardCharsets.UTF_8))
-      outputStream.close()
-    } catch {
-      case e: Exception =>
-        logError(
-          log"Could not collect thread dumps from executor ${
-            MDC(LogKeys.EXECUTOR_ID,
-              env.executorId)
-          }", e)
-    }
+  /** Print all thread dumps */
+  def writeThreadDumpToLog(env: SparkEnv): Unit = {
+    val collectedThreadDumps = getThreadDump().map(_.toString).mkString
+    logWarning(log"Thread dumps from ${MDC(LogKeys.EXECUTOR_ID, env.executorId)}:\n" +
+      log"${MDC(LogKeys.THREAD_DUMPS, collectedThreadDumps)}")
   }
 
   /** Return a heap dump. Used to capture dumps for the web UI */

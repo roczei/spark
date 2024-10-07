@@ -2819,9 +2819,4 @@ package object config {
       .version("4.0.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
-
-  private[spark] val THREAD_DUMP_COLLECTOR_DIR = ConfigBuilder("spark.threadDumpCollector.dir")
-    .version("4.0.0")
-    .stringConf
-    .createWithDefault("/tmp/spark-thread-dumps")
 }
