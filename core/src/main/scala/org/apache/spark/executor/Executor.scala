@@ -330,7 +330,7 @@ private[spark] class Executor(
   // Create and start the thread dump collector for the Spark executor
   if (conf.get(EXECUTOR_THREAD_DUMP_COLLECTOR_ENABLED)) {
     executorThreadDumpCollector = new ThreadDumpCollector(
-      () => Utils.writeThreadDumpToLog(env),
+      () => ThreadDumpCollector.saveThreadDumps(env),
       "executor-ThreadDumpCollector",
       conf.get(THREAD_DUMP_COLLECTOR_INTERVAL))
     executorThreadDumpCollector.start()

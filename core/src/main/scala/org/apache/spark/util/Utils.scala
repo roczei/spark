@@ -2112,13 +2112,6 @@ private[spark] object Utils
     }.map(threadInfoToThreadStackTrace)
   }
 
-  /** Print all thread dumps */
-  def writeThreadDumpToLog(env: SparkEnv): Unit = {
-    val collectedThreadDumps = getThreadDump().map(_.toString).mkString
-    logWarning(log"Thread dumps from ${MDC(LogKeys.EXECUTOR_ID, env.executorId)}:\n" +
-      log"${MDC(LogKeys.THREAD_DUMPS, collectedThreadDumps)}")
-  }
-
   /** Return a heap dump. Used to capture dumps for the web UI */
   def getHeapHistogram(): Array[String] = {
     val pid = String.valueOf(ProcessHandle.current().pid())
