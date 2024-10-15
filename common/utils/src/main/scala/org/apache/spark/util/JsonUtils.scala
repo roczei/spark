@@ -20,7 +20,7 @@ package org.apache.spark.util
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 
-import com.fasterxml.jackson.core.{JsonEncoding, JsonGenerator}
+import com.fasterxml.jackson.core.{JsonEncoding, JsonFactory, JsonGenerator, StreamReadConstraints}
 import com.fasterxml.jackson.databind.{DeserializationFeature, ObjectMapper}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
@@ -28,7 +28,17 @@ import org.apache.spark.util.SparkErrorUtils.tryWithResource
 
 private[spark] trait JsonUtils {
 
-  protected val mapper: ObjectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
+  private val streamReadConstraints: StreamReadConstraints = StreamReadConstraints
+    .builder()
+    .maxStringLength(200)
+    .maxNestingDepth(200)
+    .maxNumberLength(200)
+    .build()
+
+  private val jsonFactory = new JsonFactory().setStreamReadConstraints(streamReadConstraints)
+
+  protected val mapper: ObjectMapper = new ObjectMapper(jsonFactory)
+    .registerModule(DefaultScalaModule)
     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
   def toJsonString(block: JsonGenerator => Unit): String = {
