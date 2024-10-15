@@ -22,12 +22,13 @@ import java.util.{Properties, UUID}
 import scala.collection.Map
 import scala.jdk.CollectionConverters._
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.core.{JsonFactory, JsonGenerator, StreamReadConstraints}
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import org.json4s.jackson.JsonMethods.compact
 
 import org.apache.spark._
 import org.apache.spark.executor._
+import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.metrics.ExecutorMetricType
 import org.apache.spark.rdd.{DeterministicLevel, RDDOperationScope}
@@ -63,11 +64,26 @@ private[spark] class JsonProtocolOptions(conf: SparkConf) {
  *  - Any new JSON fields should be optional; use `jsonOption` when reading these fields
  *    in `*FromJson` methods.
  */
-private[spark] object JsonProtocol extends JsonUtils {
+private[spark] object JsonProtocol extends JsonUtils with Logging {
   // TODO: Remove this file and put JSON serialization into each individual class.
 
   private[util]
   val defaultOptions: JsonProtocolOptions = new JsonProtocolOptions(new SparkConf(false))
+
+  protected override val mapper: ObjectMapper = {
+    val conf = new SparkConf
+    val maxJsonStringLength: Int = conf.get(SPARK_JSON_PROTOCOL_MAX_STRING_LENGTH)
+    val streamReadConstraints: StreamReadConstraints = StreamReadConstraints
+      .builder()
+      .maxStringLength(maxJsonStringLength)
+      .build()
+    val jsonFactory = new JsonFactory().setStreamReadConstraints(streamReadConstraints)
+    logInfo(s"maxJsonStringLength: ${maxJsonStringLength}")
+    configureMapper(new ObjectMapper(jsonFactory))
+  }
+
+  logInfo(s"mapper.getMaxStringLength: ${mapper.getFactory.streamReadConstraints()
+                                               .getMaxStringLength}")
 
   /** ------------------------------------------------- *
    * JSON serialization methods for SparkListenerEvents |

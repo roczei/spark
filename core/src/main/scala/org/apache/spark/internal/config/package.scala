@@ -2809,4 +2809,13 @@ package object config {
       .version("4.0.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
+
+  val SPARK_JSON_PROTOCOL_MAX_STRING_LENGTH =
+    ConfigBuilder("spark.jsonProtocol.maxStringLen")
+      .doc("")
+      .version("4.0.0")
+      .intConf
+      .checkValue(v => v > 0, "The value should be a positive integer.")
+      .createWithDefault(Int.MaxValue)
+
 }
