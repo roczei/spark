@@ -22,12 +22,14 @@ import java.util.{Properties, UUID}
 import scala.collection.Map
 import scala.jdk.CollectionConverters._
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.core.{JsonFactory, JsonGenerator, StreamReadConstraints}
+import com.fasterxml.jackson.databind.{DeserializationFeature, JsonNode, ObjectMapper}
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.json4s.jackson.JsonMethods.compact
 
 import org.apache.spark._
 import org.apache.spark.executor._
+import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.metrics.ExecutorMetricType
 import org.apache.spark.rdd.{DeterministicLevel, RDDOperationScope}
@@ -43,9 +45,12 @@ import org.apache.spark.util.Utils.weakIntern
  * We use this instead of passing SparkConf directly because it lets us avoid
  * repeated re-parsing of configuration values on each read.
  */
-private[spark] class JsonProtocolOptions(conf: SparkConf) {
+private[spark] class JsonProtocolOptions(conf: SparkConf) extends Logging {
   val includeTaskMetricsAccumulators: Boolean =
     conf.get(EVENT_LOG_INCLUDE_TASK_METRICS_ACCUMULATORS)
+
+  val maxStringLen: Int = conf.get(HISTORY_JSON_STREAM_READ_CONSTRAINTS_MAX_STRING_LEN)
+
 }
 
 /**
@@ -63,11 +68,23 @@ private[spark] class JsonProtocolOptions(conf: SparkConf) {
  *  - Any new JSON fields should be optional; use `jsonOption` when reading these fields
  *    in `*FromJson` methods.
  */
-private[spark] object JsonProtocol extends JsonUtils {
+private[spark] object JsonProtocol extends JsonUtils with Logging {
   // TODO: Remove this file and put JSON serialization into each individual class.
 
   private[util]
   val defaultOptions: JsonProtocolOptions = new JsonProtocolOptions(new SparkConf(false))
+
+  private val streamReadConstraints: StreamReadConstraints = StreamReadConstraints
+    .builder()
+    .maxStringLength(defaultOptions.maxStringLen)
+    .build()
+
+  private val jsonFactory = new JsonFactory().setStreamReadConstraints(streamReadConstraints)
+
+  logInfo("BBB")
+  protected override val mapper: ObjectMapper = new ObjectMapper(jsonFactory)
+    .registerModule(DefaultScalaModule)
+    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
   /** ------------------------------------------------- *
    * JSON serialization methods for SparkListenerEvents |
@@ -931,6 +948,7 @@ private[spark] object JsonProtocol extends JsonUtils {
   }
 
   def sparkEventFromJson(json: String): SparkListenerEvent = {
+    logInfo("CCCCC")
     sparkEventFromJson(mapper.readTree(json))
   }
 

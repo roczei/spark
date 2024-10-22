@@ -21,6 +21,8 @@ import java.io.File
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+import com.fasterxml.jackson.core.StreamReadConstraints
+
 import org.apache.spark.SparkContext
 import org.apache.spark.io.CompressionCodec
 import org.apache.spark.launcher.SparkLauncher
@@ -2801,4 +2803,13 @@ package object config {
       .version("4.0.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
+
+  val HISTORY_JSON_STREAM_READ_CONSTRAINTS_MAX_STRING_LEN =
+    ConfigBuilder("spark.history.jsonStreamReadConstraints.maxStringLen")
+      .doc("")
+      .version("4.0.0")
+      .intConf
+      .checkValue(v => v > 0, "The value should be a positive integer.")
+      .createWithDefault(StreamReadConstraints.DEFAULT_MAX_STRING_LEN)
+
 }
