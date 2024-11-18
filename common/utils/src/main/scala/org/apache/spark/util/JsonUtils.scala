@@ -28,8 +28,12 @@ import org.apache.spark.util.SparkErrorUtils.tryWithResource
 
 private[spark] trait JsonUtils {
 
-  protected val mapper: ObjectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
-    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+  protected val mapper: ObjectMapper = configureMapper(new ObjectMapper())
+
+  protected def configureMapper(m: ObjectMapper): ObjectMapper = {
+    m.registerModule(DefaultScalaModule)
+     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+  }
 
   def toJsonString(block: JsonGenerator => Unit): String = {
     tryWithResource(new ByteArrayOutputStream()) { baos =>
