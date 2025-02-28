@@ -2870,6 +2870,13 @@ package object config {
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set("LOG", "FILE"))
-      .createWithDefault("LOG")
+      .createWithDefault("FILE")
+
+  private[spark] val THREAD_DUMP_COLLECTOR_PATTERN =
+    ConfigBuilder("spark.threadDumpCollector.include.regex")
+      .doc("Regular expression for determining which thread dumps will be captured")
+      .version("4.0.0")
+      .stringConf
+      .createWithDefault(".*")
 
 }
