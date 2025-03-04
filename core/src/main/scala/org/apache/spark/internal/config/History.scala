@@ -178,6 +178,27 @@ private[spark] object History {
       s"than ${MAX_DRIVER_LOG_AGE_S.key}.")
     .fallbackConf(CLEANER_INTERVAL_S)
 
+
+  val THREAD_DUMP_COLLECTOR_LOG_CLEANER_ENABLED = ConfigBuilder("spark.history.fs.driverlog.cleaner.enabled")
+    .version("4.0.0")
+    .doc("Specifies whether the History Server should periodically clean up driver logs from " +
+      "storage.")
+    .fallbackConf(CLEANER_ENABLED)
+
+  val MAX_THREAD_DUMP_COLLECTOR_LOG_AGE_S = ConfigBuilder("spark.history.fs.driverlog.cleaner.maxAge")
+    .version("4.0.0")
+    .doc(s"When ${THREAD_DUMP_COLLECTOR_LOG_CLEANER_ENABLED.key}=true, driver log files older than this will be " +
+      s"deleted when the driver log cleaner runs.")
+    .fallbackConf(MAX_LOG_AGE_S)
+
+  val THREAD_DUMP_COLLECTOR_LOG_CLEANER_INTERVAL = ConfigBuilder("spark.history.fs.driverlog.cleaner.interval")
+    .version("4.0.0")
+    .doc(s" When ${THREAD_DUMP_COLLECTOR_LOG_CLEANER_ENABLED.key}=true, specifies how often the filesystem " +
+      s"driver log cleaner checks for files to delete. Files are only deleted if they are older " +
+      s"than ${MAX_DRIVER_LOG_AGE_S.key}.")
+    .fallbackConf(CLEANER_INTERVAL_S)
+
+
   val HISTORY_SERVER_UI_ACLS_ENABLE = ConfigBuilder("spark.history.ui.acls.enable")
     .version("1.0.1")
     .doc("Specifies whether ACLs should be checked to authorize users viewing the applications " +
