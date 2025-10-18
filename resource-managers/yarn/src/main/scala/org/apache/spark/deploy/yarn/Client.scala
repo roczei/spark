@@ -969,6 +969,9 @@ private[spark] class Client(
     env("SPARK_YARN_STAGING_DIR") = stagingDirPath.toString
     env("SPARK_PREFER_IPV6") = Utils.preferIPv6.toString
 
+    val tmpDir = new Path(Environment.PWD.$$(), YarnConfiguration.DEFAULT_CONTAINER_TEMP_DIR)
+    sparkConf.setIfMissing("spark.yarn.appMasterEnv.TMPDIR", tmpDir.toString)
+
     // Pick up any environment variables for the AM provided through spark.yarn.appMasterEnv.*
     val amEnvPrefix = "spark.yarn.appMasterEnv."
     sparkConf.getAll

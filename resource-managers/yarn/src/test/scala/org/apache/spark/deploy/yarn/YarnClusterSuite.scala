@@ -26,6 +26,7 @@ import java.util.{HashMap => JHashMap}
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.io.Source
+import scala.sys.env
 
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.scalatest.concurrent.Eventually._
@@ -128,6 +129,16 @@ class YarnClusterSuite extends BaseYarnClusterSuite {
     |def func():
     |    return 42
     """.stripMargin
+
+  test("Check the value of the TMPDIR environment " +
+    "variable within a YARN container in client mode") {
+    testTmpDirEnv(true)
+  }
+
+  test("Check the value of the TMPDIR environment" +
+    "variable within a YARN container in cluster mode") {
+    testTmpDirEnv(false)
+  }
 
   test("run Spark in yarn-client mode") {
     testBasicYarnApp(true)
@@ -501,6 +512,16 @@ class YarnClusterSuite extends BaseYarnClusterSuite {
       )
     )
     checkResult(finalState, result, "true")
+  }
+
+  private def testTmpDirEnv(clientMode: Boolean): Unit = {
+    val result = File.createTempFile("result", null, tempDir)
+    val finalState = runSpark(
+      clientMode = clientMode,
+      klass = mainClassName(QueryExecutorTmpDirEnv.getClass),
+      appArgs = Seq(result.getAbsolutePath)
+    )
+    checkResult(finalState, result)
   }
 
   def createEmptyIvySettingsFile: File = {
@@ -902,4 +923,39 @@ private class PyConnectDepChecker(python: String, libPath: Seq[String]) {
     }
     sys.props.getOrElse("spark.test.home", sys.env("SPARK_HOME"))
   }
+}
+
+private object QueryExecutorTmpDirEnv extends Logging {
+
+  val variableName = "TMPDIR"
+  val notFound = "Not Found"
+  val executorPrefix = s"executor-${variableName}"
+  val driverPrefix = s"driver-${variableName}"
+
+  def getExecutorEnvVariables(partitionIndex: Int, iterator: Iterator[Int]): Iterator[String] = {
+    val executorVarValue = env.getOrElse(variableName, notFound)
+    assert(!executorVarValue.equals(notFound))
+    Iterator(s"${executorPrefix}:$executorVarValue")
+  }
+
+  def main(args: Array[String]): Unit = {
+    val status = args(0)
+    val sc = new SparkContext(new SparkConf()
+      .setAppName("TMPDIR application"))
+
+    val clientMode = sc.getConf.get(SparkLauncher.DEPLOY_MODE) == "client"
+    val numPartitions = 2
+    val rdd = sc.parallelize(1 to numPartitions, numPartitions)
+    val results = rdd.mapPartitionsWithIndex(getExecutorEnvVariables).collect()
+    logInfo(results.map(_.toString).mkString)
+    val driverVarValue = env.getOrElse(variableName, notFound)
+    logInfo(s"${driverPrefix}:$driverVarValue")
+
+    if (!clientMode) {
+      assert(!driverVarValue.equals(notFound))
+    }
+    Files.writeString(new File(status).toPath, "success")
+    sc.stop()
+  }
+
 }

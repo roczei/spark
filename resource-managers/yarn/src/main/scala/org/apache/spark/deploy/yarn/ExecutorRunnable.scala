@@ -211,6 +211,9 @@ private[yarn] class ExecutorRunnable(
     System.getenv().asScala.filter { case (k, _) => k.startsWith("SPARK") }
       .foreach { case (k, v) => env(k) = v }
 
+    val tmpDir = new Path(Environment.PWD.$$(), YarnConfiguration.DEFAULT_CONTAINER_TEMP_DIR)
+    sparkConf.setIfMissing("spark.executorEnv.TMPDIR", tmpDir.toString)
+
     sparkConf.getExecutorEnv.foreach { case (key, value) =>
       if (key == Environment.CLASSPATH.name()) {
         // If the key of env variable is CLASSPATH, we assume it is a path and append it.
