@@ -424,6 +424,26 @@ private[spark] object TestUtils extends SparkTestUtils {
       EnumSet.of(OWNER_READ, OWNER_EXECUTE, OWNER_WRITE))
     file.getPath
   }
+
+  // Borrowed from SparkConnectClientSuite
+  def withEnvs(pairs: (String, String)*)(f: => Unit): Unit = {
+    val readonlyEnv = System.getenv()
+    val field = readonlyEnv.getClass.getDeclaredField("m")
+    field.setAccessible(true)
+    val modifiableEnv = field.get(readonlyEnv).asInstanceOf[java.util.Map[String, String]]
+    try {
+      for ((k, v) <- pairs) {
+        assert(!modifiableEnv.containsKey(k))
+        modifiableEnv.put(k, v)
+      }
+      f
+    } finally {
+      for ((k, _) <- pairs) {
+        modifiableEnv.remove(k)
+      }
+    }
+  }
+
 }
 
 

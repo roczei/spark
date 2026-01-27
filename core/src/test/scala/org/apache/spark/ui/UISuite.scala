@@ -33,7 +33,7 @@ import org.scalatest.time.SpanSugar._
 
 import org.apache.spark._
 import org.apache.spark.LocalSparkContext._
-import org.apache.spark.internal.config.UI
+import org.apache.spark.internal.config.{AUTO_DISABLE_INSECURE_UI, SPARK_UI_YARN_CERT_AUTO_ENABLED, UI}
 import org.apache.spark.util.Utils
 
 class UISuite extends SparkFunSuite {
@@ -495,6 +495,66 @@ class UISuite extends SparkFunSuite {
       }
     } finally {
       stopServer(serverInfo)
+    }
+  }
+
+  test("SPARK-XXXXX: Automatically disable the SparkUI when SSL is not enabled") {
+    def newSparkContext(): SparkContext = {
+      val conf = new SparkConf()
+        .setMaster("local")
+        .setAppName("test")
+        .set(AUTO_DISABLE_INSECURE_UI.key, "true")
+        .set(UI.UI_ENABLED, true)
+      new SparkContext(conf)
+    }
+    withSpark(newSparkContext()) { sc =>
+      assert(sc.ui.isEmpty)
+    }
+  }
+
+  test("SPARK-XXXXX: Use the YARN generated certificate") {
+    val keyStoreFilePath = getTestResourcePath("spark.keystore")
+    val trustStoreFilePath = getTestResourcePath("truststore")
+
+    TestUtils.withEnvs("KEYSTORE_FILE_LOCATION" -> keyStoreFilePath,
+      "KEYSTORE_PASSWORD" -> "123456",
+      "KEYSTORE_TYPE" -> "JKS",
+      "TRUSTSTORE_FILE_LOCATION" -> trustStoreFilePath,
+      "TRUSTSTORE_PASSWORD" -> "123456",
+      "TRUSTSTORE_TYPE" -> "JKS"
+    ) {
+        def newSparkContext(): SparkContext = {
+            val conf = new SparkConf()
+              .setMaster("local")
+              .setAppName("test")
+              .set(SPARK_UI_YARN_CERT_AUTO_ENABLED.key, "true")
+              .set(UI.UI_ENABLED, true)
+            new SparkContext(conf)
+          }
+
+        withSpark(newSparkContext()) { sc =>
+            val sparkUI = sc.ui
+            assert(sparkUI.isDefined)
+            assert(sparkUI.get.webUrl.startsWith("https://"))
+            assert(TestUtils.httpResponseMessage(new URI(s"${sparkUI.get.webUrl}/jobs").toURL)
+              .contains("Spark Jobs"))
+        }
+    }
+  }
+
+  test("SPARK-XXXXX: Automatically disable the Spark UI because the YARN certificate is missing") {
+    def newSparkContext(): SparkContext = {
+      val conf = new SparkConf()
+        .setMaster("local")
+        .setAppName("test")
+        .set(SPARK_UI_YARN_CERT_AUTO_ENABLED.key, "true")
+        .set(AUTO_DISABLE_INSECURE_UI.key, "true")
+        .set(UI.UI_ENABLED, true)
+      new SparkContext(conf)
+    }
+
+    withSpark(newSparkContext()) { sc =>
+      assert(sc.ui.isEmpty)
     }
   }
 

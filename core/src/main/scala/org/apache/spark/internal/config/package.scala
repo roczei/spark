@@ -2919,4 +2919,28 @@ package object config {
       .checkValue(v => v.forall(Set("stdout", "stderr").contains),
         "The value only can be one or more of 'stdout, stderr'.")
       .createWithDefault(Seq("stdout", "stderr"))
+
+  private[spark] val SPARK_UI_YARN_CERT_AUTO_ENABLED =
+    ConfigBuilder("spark.ui.yarn.cert.auto.enabled")
+      .doc("The YARN resource manager can act as a limited CA and provide a certificate for " +
+        "the YARN application master what it can use, it is only accepted by the RM proxy. " +
+        "By default, this is not enabled in YARN; however, it is enabled if the value of " +
+        "the yarn.resourcemanager.application-https.policy parameter in yarn-site.xml " +
+        "is set to LENIENT or STRICT. When set to true Spark can use this certificate in " +
+        "cluster mode because it runs in the YARN application master's container. Comment: this " +
+        "is not supported in Spark client mode because the Spark driver located on the " +
+        "submission machine and the Spark UI starts up before the communication with YARN " +
+        "is established, therefore the certificate is not available in this case")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  private[spark] val AUTO_DISABLE_INSECURE_UI =
+    ConfigBuilder("spark.auto.disable.insecure.ui.enabled")
+      .doc(s"When set to true, the Spark UI will be automatically " +
+        "disabled if SSL has not been enabled for the Spark UI.")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
 }
