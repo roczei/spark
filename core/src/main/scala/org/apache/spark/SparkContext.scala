@@ -516,14 +516,28 @@ class SparkContext(config: SparkConf) extends Logging {
         None
       }
 
-    _ui =
-      if (conf.get(UI_ENABLED)) {
-        Some(SparkUI.create(Some(this), _statusStore, _conf, _env.securityManager, appName, "",
-          startTime))
-      } else {
-        // For tests, do not enable the UI
-        None
+    val isSSLKeyStoreNotSet = conf.getOption("spark.ssl.ui.keyStore").isEmpty &&
+      conf.getOption("spark.ssl.keyStore").isEmpty &&
+      !sys.env.contains("KEYSTORE_FILE_LOCATION")
+    val isSSLUINotEnabled = !conf.getBoolean("spark.ssl.ui.enabled", false)  &&
+      !conf.getBoolean("spark.ssl.enabled", false) &&
+      !conf.get(SPARK_UI_YARN_CERT_AUTO_ENABLED)
+    val isInsecure = isSSLUINotEnabled || isSSLKeyStoreNotSet
+    val autoDisableInsecure = conf.get(AUTO_DISABLE_INSECURE_UI)
+    val shouldDisableUI = !conf.get(UI_ENABLED) || (autoDisableInsecure && isInsecure)
+
+    _ui = if (shouldDisableUI) {
+      if (autoDisableInsecure && isInsecure) {
+        logInfo("Insecure Spark UI access is disabled. To enable the UI, you must " +
+          "either enable SSL and provide a keystore or set " +
+          s"${AUTO_DISABLE_INSECURE_UI.key} to false")
       }
+      None
+    } else {
+      Some(SparkUI.create(Some(this), _statusStore, _conf, _env.securityManager, appName, "",
+        startTime))
+    }
+
     // Bind the UI before starting the task scheduler to communicate
     // the bound port to the cluster manager properly
     _ui.foreach(_.bind())

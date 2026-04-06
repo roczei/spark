@@ -27,6 +27,7 @@ import org.apache.hadoop.conf.Configuration
 import org.eclipse.jetty.util.ssl.SslContextFactory
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.SPARK_UI_YARN_CERT_AUTO_ENABLED
 import org.apache.spark.network.util.ConfigProvider
 import org.apache.spark.network.util.MapConfigProvider
 
@@ -244,7 +245,13 @@ private[spark] object SSLOptions extends Logging {
       defaults.exists(_.enabled)
     }
 
-    val enabled = conf.getBoolean(s"$ns.enabled", defaultValue = enabledDefault)
+    val enabled = if (Seq("spark.ssl", "spark.ssl.ui").contains(ns) &&
+      conf.get(SPARK_UI_YARN_CERT_AUTO_ENABLED)) {
+      true
+    } else {
+      conf.getBoolean(s"$ns.enabled", defaultValue = enabledDefault)
+    }
+
     if (!enabled) {
       return new SSLOptions()
     }
@@ -253,10 +260,28 @@ private[spark] object SSLOptions extends Logging {
       require(p >= 0, "Port number must be a non-negative value.")
     }
 
+    val yarnAutoConfiguration: scala.collection.immutable.Map[String, String] = {
+      val envKeys = scala.collection.immutable.Map(
+        "keyStore"           -> "KEYSTORE_FILE_LOCATION",
+        "keyStorePassword"   -> "KEYSTORE_PASSWORD",
+        "keyPassword"        -> "KEYSTORE_PASSWORD",
+        "keyStoreType"       -> "KEYSTORE_TYPE",
+        "trustStore"         -> "TRUSTSTORE_FILE_LOCATION",
+        "trustStorePassword" -> "TRUSTSTORE_PASSWORD",
+        "trustStoreType"     -> "TRUSTSTORE_TYPE"
+      )
+
+      if (conf.get(SPARK_UI_YARN_CERT_AUTO_ENABLED) && envKeys.values.forall(sys.env.contains)) {
+        envKeys.flatMap { case (id, envVar) => sys.env.get(envVar).map(id -> _) }
+      } else scala.collection.immutable.Map.empty
+    }
+
     val keyStore = conf.getWithSubstitution(s"$ns.keyStore").map(new File(_))
+        .orElse(yarnAutoConfiguration.get("keyStore").map(new File(_)))
         .orElse(defaults.flatMap(_.keyStore))
 
     val keyStorePassword = conf.getWithSubstitution(s"$ns.keyStorePassword")
+        .orElse(yarnAutoConfiguration.get("keyStorePassword"))
         .orElse(Option(hadoopConf.getPassword(s"$ns.keyStorePassword")).map(new String(_)))
         .orElse(Option(conf.getenv(ENV_RPC_SSL_KEY_STORE_PASSWORD)).filter(_.trim.nonEmpty))
         .orElse(defaults.flatMap(_.keyStorePassword))
@@ -269,11 +294,13 @@ private[spark] object SSLOptions extends Logging {
       .orElse(defaults.flatMap(_.privateKeyPassword))
 
     val keyPassword = conf.getWithSubstitution(s"$ns.keyPassword")
+        .orElse(yarnAutoConfiguration.get("keyPassword"))
         .orElse(Option(hadoopConf.getPassword(s"$ns.keyPassword")).map(new String(_)))
         .orElse(Option(conf.getenv(ENV_RPC_SSL_KEY_PASSWORD)).filter(_.trim.nonEmpty))
         .orElse(defaults.flatMap(_.keyPassword))
 
     val keyStoreType = conf.getWithSubstitution(s"$ns.keyStoreType")
+        .orElse(yarnAutoConfiguration.get("keyStoreType"))
         .orElse(defaults.flatMap(_.keyStoreType))
 
     val certChain = conf.getOption(s"$ns.certChain").map(new File(_))
@@ -283,14 +310,17 @@ private[spark] object SSLOptions extends Logging {
       conf.getBoolean(s"$ns.needClientAuth", defaultValue = defaults.exists(_.needClientAuth))
 
     val trustStore = conf.getWithSubstitution(s"$ns.trustStore").map(new File(_))
+        .orElse(yarnAutoConfiguration.get("trustStore").map(new File(_)))
         .orElse(defaults.flatMap(_.trustStore))
 
     val trustStorePassword = conf.getWithSubstitution(s"$ns.trustStorePassword")
+        .orElse(yarnAutoConfiguration.get("trustStorePassword"))
         .orElse(Option(hadoopConf.getPassword(s"$ns.trustStorePassword")).map(new String(_)))
         .orElse(Option(conf.getenv(ENV_RPC_SSL_TRUST_STORE_PASSWORD)).filter(_.trim.nonEmpty))
         .orElse(defaults.flatMap(_.trustStorePassword))
 
     val trustStoreType = conf.getWithSubstitution(s"$ns.trustStoreType")
+        .orElse(yarnAutoConfiguration.get("trustStoreType"))
         .orElse(defaults.flatMap(_.trustStoreType))
 
     val trustStoreReloadingEnabled = conf.getBoolean(s"$ns.trustStoreReloadingEnabled",
